@@ -3,19 +3,19 @@
 #ifndef K_MEANS_H
 #define K_MEANS_H
 
-struct Coordinate {
-    float x;
-    float y;
-    int cluster_index;
-} typedef coordinate;
+typedef struct Coordinate {
+  float x;
+  float y;
+  int cluster_index;
+} coordinate;
 
-float distance (coordinate *a, coordinate *b);
+float distance(coordinate *a, coordinate *b);
 
-struct Cluster {
-    coordinate **samples;
-    coordinate *centroid;
-    int size;
-}typedef cluster;
+typedef struct Cluster {
+  coordinate **samples;
+  coordinate *centroid;
+  int size;
+} cluster;
 
 void init();
 
