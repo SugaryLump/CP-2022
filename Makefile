@@ -4,11 +4,14 @@ SRC				= src/
 INCLUDES		= include/
 EXEC			= k_means
 
-CFLAGS			= "-lm" "-g"
+CFLAGS			= "-lm" "-g" -Iincludes
 
 .DEFAULT_GOAL 	= k_means
 
-k_means: $(SRC)k_means.c
+$(BIN):
+	mkdir -p $(BIN)
+
+k_means: $(SRC)k_means.c $(BIN)
 	$(CC) $(CFLAGS) $(SRC)k_means.c -o $(BIN)k_means
 
 #$(BIN)utils.o: $(SRC)utils.c $(INCLUDES)utils.h
