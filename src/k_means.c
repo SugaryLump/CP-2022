@@ -11,7 +11,7 @@ int k, n_samples, seed;
 coordinate **samples;
 cluster **clusters;
 
-float distance(coordinate *a, coordinate *b) {
+float dist(coordinate *a, coordinate *b) {
   return sqrt((b->x - a->x) * (b->x - a->x) + (b->y - a->y) * (b->y - a->y));
 }
 
@@ -66,12 +66,12 @@ short distribute_elements() {
   for (int i = 0; i < n_samples; i++) {
     // Find nearest cluster
     int cluster_index = 0;
-    float min = distance(samples[i], clusters[0]->centroid);
+    float min = dist(samples[i], clusters[0]->centroid);
     for (int j = 1; j < k; j++) {
-      float dist = distance(samples[i], clusters[j]->centroid);
-      if (dist < min) {
+      float d = dist(samples[i], clusters[j]->centroid);
+      if (d < min) {
         cluster_index = j;
-        min = dist;
+        min = d;
       }
     }
 

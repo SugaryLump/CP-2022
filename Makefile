@@ -4,7 +4,7 @@ SRC				= src/
 INCLUDES		= include/
 EXEC			= k_means
 
-CFLAGS			= "-lm" "-g" -Iincludes
+CFLAGS			= "-lm" "-g" -Iincludes -O2
 
 .DEFAULT_GOAL 	= k_means
 
