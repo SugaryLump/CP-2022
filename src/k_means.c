@@ -1,5 +1,6 @@
 #include "k_means.h"
 #include <math.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -66,7 +67,7 @@ void calc_centroids() {
 }
 
 short distribute_elements() {
-  short changed = 0;
+  bool changed = false;
 
   // Reset cluster sizes;
   for (int i = 0; i < k; i++) {
@@ -89,7 +90,7 @@ short distribute_elements() {
 
     // Update data
     if (cluster_index != samples[i].cluster_index) {
-      changed = 1;
+      changed = true;
     }
     samples[i].cluster_index = cluster_index;
     // clusters[cluster_index].samples[clusters[cluster_index].size] =
