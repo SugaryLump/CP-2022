@@ -8,7 +8,7 @@
 #define K 4
 
 int k, n_samples, seed;
-coordinate **samples;
+coordinate *samples;
 cluster **clusters;
 
 float dist(coordinate *a, coordinate *b) {
@@ -20,13 +20,11 @@ void init() {
   srand(10);
 
   // Create random samples
-  samples = calloc(n_samples, sizeof(coordinate *));
+  samples = calloc(n_samples, sizeof(coordinate));
   for (int i = 0; i < n_samples; i++) {
-    coordinate *sample = calloc(1, sizeof(coordinate));
-    sample->x = (float)rand() / RAND_MAX;
-    sample->y = (float)rand() / RAND_MAX;
-    sample->cluster_index = -1;
-    samples[i] = sample;
+    samples[i].x = (float)rand() / RAND_MAX;
+    samples[i].y = (float)rand() / RAND_MAX;
+    samples[i].cluster_index = -1;
   }
 
   // Initialize clusters
@@ -34,8 +32,8 @@ void init() {
   for (int i = 0; i < k; i++) {
     cluster *new_cluster = calloc(1, sizeof(cluster));
     new_cluster->samples = calloc(n_samples, sizeof(coordinate *));
-    new_cluster->samples[0] = samples[i];
-    samples[i]->cluster_index = i;
+    new_cluster->samples[0] = &samples[i];
+    samples[i].cluster_index = i;
     new_cluster->centroid = calloc(1, sizeof(coordinate));
     new_cluster->size = 1;
     clusters[i] = new_cluster;
@@ -66,9 +64,9 @@ short distribute_elements() {
   for (int i = 0; i < n_samples; i++) {
     // Find nearest cluster
     int cluster_index = 0;
-    float min = dist(samples[i], clusters[0]->centroid);
+    float min = dist(&samples[i], clusters[0]->centroid);
     for (int j = 1; j < k; j++) {
-      float d = dist(samples[i], clusters[j]->centroid);
+      float d = dist(&samples[i], clusters[j]->centroid);
       if (d < min) {
         cluster_index = j;
         min = d;
@@ -76,12 +74,12 @@ short distribute_elements() {
     }
 
     // Update data
-    if (cluster_index != samples[i]->cluster_index) {
+    if (cluster_index != samples[i].cluster_index) {
       changed = 1;
     }
-    samples[i]->cluster_index = cluster_index;
+    samples[i].cluster_index = cluster_index;
     cluster *c = clusters[cluster_index];
-    c->samples[c->size] = samples[i];
+    c->samples[c->size] = &samples[i];
     c->size++;
   }
 
