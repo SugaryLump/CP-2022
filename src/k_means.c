@@ -11,8 +11,8 @@ int k, n_samples, seed;
 coordinate *samples;
 cluster *clusters;
 
-float dist(coordinate *a, coordinate *b) {
-  return sqrt((b->x - a->x) * (b->x - a->x) + (b->y - a->y) * (b->y - a->y));
+float dist(coordinate a, coordinate b) {
+  return (b.x - a.x) * (b.x - a.x) + (b.y - a.y) * (b.y - a.y);
 }
 
 void init() {
@@ -73,12 +73,14 @@ short distribute_elements() {
     clusters[i].size = 0;
   }
 
+  float distances[K];
   for (int i = 0; i < n_samples; i++) {
     // Find nearest cluster
     int cluster_index = 0;
-    float min = dist(&samples[i], &clusters[0].centroid);
-    for (int j = 1; j < k; j++) {
-      float d = dist(&samples[i], &clusters[j].centroid);
+    float min = dist(samples[i], clusters[0].centroid);
+    for (int j = 0; j < k; j++) {
+      distances[j] = dist(samples[i], clusters[j].centroid);
+      float d = dist(samples[i], clusters[j].centroid);
       if (d < min) {
         cluster_index = j;
         min = d;
@@ -98,17 +100,8 @@ short distribute_elements() {
 }
 
 int main(int argc, char **argv) {
-  if (argc < 3) {
-    n_samples = N;
-    k = K;
-  } else {
-    sscanf(argv[1], "%d", &n_samples);
-    sscanf(argv[2], "%d", &k);
-  }
-
-  if (k > n_samples) {
-    k = n_samples;
-  }
+  n_samples = N;
+  k = K;
 
   init();
   calc_centroids();
