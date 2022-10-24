@@ -12,8 +12,9 @@ typedef struct Coordinate {
 float distance(coordinate *a, coordinate *b);
 
 typedef struct Cluster {
-  coordinate **samples;
-  coordinate *centroid;
+  coordinate centroid;
+  float sum_x;
+  float sum_y;
   int size;
 } cluster;
 
