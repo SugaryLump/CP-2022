@@ -4,7 +4,7 @@ SRC				= src/
 INCLUDES		= include/
 EXEC			= k_means
 
-CFLAGS			= "-lm" "-g" -Iincludes -O2 -ftree-vectorize -ffast-math -msse2 -fopt-info-vec-missed -fno-omit-frame-pointer -std=gnu99
+CFLAGS			= "-lm" "-g" -Iincludes -O2 -ftree-vectorize -ffast-math -msse2 -fopt-info-vec-missed -fno-omit-frame-pointer -std=gnu99 -Wall -march=native
 
 .DEFAULT_GOAL 	= k_means
 
