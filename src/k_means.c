@@ -99,7 +99,7 @@ bool distribute_elements() {
     // }
 
     float min = dist(samples[i], centroids[0]);
-    for (int j = 0; j < k; j++) {
+    for (int j = 1; j < k; j++) {
       float d = dist(samples[i], centroids[j]);
       if (d < min) {
         cluster_index = j;
