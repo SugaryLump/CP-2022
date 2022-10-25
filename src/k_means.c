@@ -27,8 +27,8 @@ void init() {
   srand(10);
 
   // Create random samples
-  samples = calloc(n_samples, sizeof(coordinate));
-  cluster_indices = calloc(n_samples, sizeof(int));
+  samples = malloc(n_samples * sizeof(coordinate));
+  cluster_indices = malloc(n_samples * sizeof(int));
   for (int i = 0; i < n_samples; i++) {
     samples[i].x = (float)rand() / RAND_MAX;
     samples[i].y = (float)rand() / RAND_MAX;
@@ -36,10 +36,10 @@ void init() {
   }
 
   // Initialize clusters
-  cluster_size = calloc(k, sizeof(int));
-  cluster_x = calloc(k, sizeof(float));
-  cluster_y = calloc(k, sizeof(float));
-  centroids = calloc(k, sizeof(coordinate));
+  cluster_size = malloc(k * sizeof(int));
+  cluster_x = malloc(k * sizeof(float));
+  cluster_y = malloc(k * sizeof(float));
+  centroids = malloc(k * sizeof(coordinate));
   for (int i = 0; i < k; i++) {
     cluster_indices[i] = i;
     // clusters[i].centroid.cluster_index = i;
