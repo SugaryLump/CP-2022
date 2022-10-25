@@ -10,7 +10,9 @@
 
 int k, n_samples, seed;
 coordinate *samples;
+int *cluster_indices;
 cluster *clusters;
+coordinate *centroids;
 
 float dist(coordinate a, coordinate b) {
   return (b.x - a.x) * (b.x - a.x) + (b.y - a.y) * (b.y - a.y);
@@ -22,17 +24,19 @@ void init() {
 
   // Create random samples
   samples = calloc(n_samples, sizeof(coordinate));
+  cluster_indices = calloc(n_samples, sizeof(int));
   for (int i = 0; i < n_samples; i++) {
     samples[i].x = (float)rand() / RAND_MAX;
     samples[i].y = (float)rand() / RAND_MAX;
-    samples[i].cluster_index = -1;
+    cluster_indices[i] = -1;
   }
 
   // Initialize clusters
   clusters = calloc(k, sizeof(cluster));
+  centroids = calloc(k, sizeof(coordinate));
   for (int i = 0; i < k; i++) {
-    samples[i].cluster_index = i;
-    clusters[i].centroid.cluster_index = i;
+    cluster_indices[i] = i;
+    // clusters[i].centroid.cluster_index = i;
     clusters[i].size = 1;
   }
 }
@@ -46,15 +50,15 @@ void calc_centroids() {
 
   for (int i = 0; i < n_samples; i++) {
     coordinate *c = &samples[i];
-    clusters[c->cluster_index].sum_x += c->x;
-    clusters[c->cluster_index].sum_y += c->y;
-    clusters[c->cluster_index].size++;
+    clusters[cluster_indices[i]].sum_x += c->x;
+    clusters[cluster_indices[i]].sum_y += c->y;
+    clusters[cluster_indices[i]].size++;
   }
 
   // Calculate centroids
   for (int i = 0; i < k; i++) {
-    clusters[i].centroid.x = clusters[i].sum_x / clusters[i].size;
-    clusters[i].centroid.y = clusters[i].sum_y / clusters[i].size;
+    centroids[i].x = clusters[i].sum_x / clusters[i].size;
+    centroids[i].y = clusters[i].sum_y / clusters[i].size;
   }
 
   //   for (int j = 0; j < clusters[i].size; j++) {
@@ -66,7 +70,7 @@ void calc_centroids() {
   // }
 }
 
-short distribute_elements() {
+bool distribute_elements() {
   bool changed = false;
 
   // Reset cluster sizes;
@@ -74,25 +78,39 @@ short distribute_elements() {
     clusters[i].size = 0;
   }
 
-  float distances[K];
   for (int i = 0; i < n_samples; i++) {
     // Find nearest cluster
     int cluster_index = 0;
-    float min = dist(samples[i], clusters[0].centroid);
+    // Isto é mais lento for some reason... Vetoriza o cálculo da distância, mas
+    // o cálculo do mínimo demora consideravelmente mais e acrescenta ~1s ao
+    // tempo de execução float distances[k];
+
+    // for (int j = 0; j < k; j++) {
+    //   distances[j] = dist(samples[i], centroids[j]);
+    // }
+
+    float min = dist(samples[i], centroids[0]);
     for (int j = 0; j < k; j++) {
-      distances[j] = dist(samples[i], clusters[j].centroid);
-      float d = dist(samples[i], clusters[j].centroid);
+      float d = dist(samples[i], centroids[j]);
       if (d < min) {
         cluster_index = j;
         min = d;
       }
     }
 
+    // float min = distances[0];
+    // for (int j = 1; j < k; j++) {
+    //   if (distances[j] < min) {
+    //     cluster_index = j;
+    //     min = distances[j];
+    //   }
+    // }
+
     // Update data
-    if (cluster_index != samples[i].cluster_index) {
+    if (cluster_index != cluster_indices[i]) {
       changed = true;
     }
-    samples[i].cluster_index = cluster_index;
+    cluster_indices[i] = cluster_index;
     // clusters[cluster_index].samples[clusters[cluster_index].size] =
     // &samples[i]; clusters[cluster_index].size++;
   }
@@ -116,9 +134,8 @@ int main(int argc, char **argv) {
   printf("N = %d, K = %d\n", n_samples, k);
   for (int i = 0; i < k; i++) {
     cluster c = clusters[i];
-    printf("Center: (%f, %f) : Size: %d\n", c.centroid.x, c.centroid.y, c.size);
+    printf("Center: (%f, %f) : Size: %d\n", centroids[i].x, centroids[i].y,
+           c.size);
   }
   printf("Iterations: %d\n", iterations);
-
-  return 1;
 }
