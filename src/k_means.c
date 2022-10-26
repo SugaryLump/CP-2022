@@ -57,8 +57,12 @@ void calc_centroids() {
   for (int i = 0; i < n_samples; i++) {
     coordinate *c = &samples[i];
     cluster_x[cluster_indices[i]] += c->x;
-    cluster_y[cluster_indices[i]] += c->y;
     cluster_size[cluster_indices[i]]++;
+  }
+
+  for (int i = 0; i < n_samples; i++) {
+    coordinate *c = &samples[i];
+    cluster_y[cluster_indices[i]] += c->y;
   }
 
   // Calculate centroids
