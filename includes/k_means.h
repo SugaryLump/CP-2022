@@ -17,10 +17,4 @@ typedef struct Cluster {
   int size;
 } cluster;
 
-void init();
-
-void calc_centroids();
-
-bool distribute_elements();
-
 #endif

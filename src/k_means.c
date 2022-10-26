@@ -8,18 +8,27 @@
 #define N 10000000
 #define K 4
 
-int k, n_samples, seed;
-coordinate *samples;
+// coordinate *samples;
 int *cluster_indices;
 // cluster *clusters;
-coordinate *centroids;
+// coordinate *centroids;
+float *centroids_x;
+float *centroids_y;
+
+float *sample_x;
+float *sample_y;
 
 float *cluster_x;
 float *cluster_y;
 int *cluster_size;
 
-float dist(coordinate a, coordinate b) {
-  return (b.x - a.x) * (b.x - a.x) + (b.y - a.y) * (b.y - a.y);
+float dist(int a, int b) {
+  float a_x = sample_x[a];
+  float a_y = sample_y[a];
+
+  float b_x = centroids_x[b];
+  float b_y = centroids_y[b];
+  return (b_x - a_x) * (b_x - a_x) + (b_y - a_y) * (b_y - a_y);
 }
 
 void init() {
@@ -27,44 +36,46 @@ void init() {
   srand(10);
 
   // Create random samples
-  samples = malloc(n_samples * sizeof(coordinate));
-  cluster_indices = malloc(n_samples * sizeof(int));
-  for (int i = 0; i < n_samples; i++) {
-    samples[i].x = (float)rand() / RAND_MAX;
-    samples[i].y = (float)rand() / RAND_MAX;
+  sample_x = malloc(N * sizeof(float));
+  sample_y = malloc(N * sizeof(float));
+  cluster_indices = malloc(N * sizeof(int));
+  for (int i = 0; i < N; i++) {
+    sample_x[i] = (float)rand() / RAND_MAX;
+    sample_y[i] = (float)rand() / RAND_MAX;
     cluster_indices[i] = -1;
   }
 
   // Initialize clusters
-  cluster_size = malloc(k * sizeof(int));
-  cluster_x = malloc(k * sizeof(float));
-  cluster_y = malloc(k * sizeof(float));
-  centroids = malloc(k * sizeof(coordinate));
-  for (int i = 0; i < k; i++) {
+  cluster_size = malloc(K * sizeof(int));
+  cluster_x = malloc(K * sizeof(float));
+  cluster_y = malloc(K * sizeof(float));
+  // centroids = malloc(K *sizeof(coordinate));
+  centroids_x = malloc(K * sizeof(float));
+  centroids_y = malloc(K * sizeof(float));
+  for (int i = 0; i < K; i++) {
     cluster_indices[i] = i;
     // clusters[i].centroid.cluster_index = i;
-    cluster_size[i] = 1;
+    // cluster_size[i] = 1;
   }
 }
 
 void calc_centroids() {
-  for (int i = 0; i < k; i++) {
+  for (int i = 0; i < K; i++) {
     cluster_x[i] = 0;
     cluster_y[i] = 0;
     cluster_size[i] = 0;
   }
 
-  for (int i = 0; i < n_samples; i++) {
-    coordinate *c = &samples[i];
-    cluster_x[cluster_indices[i]] += c->x;
-    cluster_y[cluster_indices[i]] += c->y;
+  for (int i = 0; i < N; i++) {
+    cluster_x[cluster_indices[i]] += sample_x[i];
+    cluster_y[cluster_indices[i]] += sample_y[i];
     cluster_size[cluster_indices[i]]++;
   }
 
   // Calculate centroids
-  for (int i = 0; i < k; i++) {
-    centroids[i].x = cluster_x[i] / cluster_size[i];
-    centroids[i].y = cluster_y[i] / cluster_size[i];
+  for (int i = 0; i < K; i++) {
+    centroids_x[i] = cluster_x[i] / cluster_size[i];
+    centroids_y[i] = cluster_y[i] / cluster_size[i];
   }
 
   //   for (int j = 0; j < clusters[i].size; j++) {
@@ -79,12 +90,14 @@ void calc_centroids() {
 bool distribute_elements() {
   bool changed = false;
 
-  for (int i = 0; i < n_samples; i++) {
+  for (int i = 0; i < N; i++) {
     // Find nearest cluster
     int cluster_index = 0;
     // Isto é mais lento for some reason... Vetoriza o cálculo da distância, mas
     // o cálculo do mínimo demora consideravelmente mais e acrescenta ~1s ao
-    // tempo de execução float distances[k];
+    // tempo de execução
+
+    // float distances[k];
 
     // for (int j = 0; j < k; j++) {
     //   distances[j] = dist(samples[i], centroids[j]);
@@ -98,9 +111,9 @@ bool distribute_elements() {
     //   }
     // }
 
-    float min = dist(samples[i], centroids[0]);
-    for (int j = 1; j < k; j++) {
-      float d = dist(samples[i], centroids[j]);
+    float min = dist(i, 0);
+    for (int j = 1; j < K; j++) {
+      float d = dist(i, j);
       if (d < min) {
         cluster_index = j;
         min = d;
@@ -120,9 +133,6 @@ bool distribute_elements() {
 }
 
 int main(int argc, char **argv) {
-  n_samples = N;
-  k = K;
-
   init();
   calc_centroids();
   int iterations = 0;
@@ -130,11 +140,10 @@ int main(int argc, char **argv) {
     iterations++;
     calc_centroids();
   }
-  // calc_centroids;
 
-  printf("N = %d, K = %d\n", n_samples, k);
-  for (int i = 0; i < k; i++) {
-    printf("Center: (%f, %f) : Size: %d\n", centroids[i].x, centroids[i].y,
+  printf("N = %d, K = %d\n", N, K);
+  for (int i = 0; i < K; i++) {
+    printf("Center: (%f, %f) : Size: %d\n", centroids_x[i], centroids_y[i],
            cluster_size[i]);
   }
   printf("Iterations: %d\n", iterations);

@@ -4,7 +4,11 @@ SRC				= src/
 INCLUDES		= include/
 EXEC			= k_means
 
-CFLAGS			= "-lm" "-g" -Iincludes -O2 -ftree-vectorize -ffast-math -msse2 -fopt-info-vec-missed -fno-omit-frame-pointer -std=gnu99 -funroll-loops
+# <<<<<<< HEAD
+CFLAGS			= "-lm" "-g" -Iincludes -Ofast -ftree-vectorize -ffast-math -msse2 -fopt-info-vec-missed -fno-omit-frame-pointer -std=gnu99 -funroll-loops
+# =======
+# CFLAGS			= "-lm" "-g" -Iincludes -Ofast -ftree-vectorize -ffast-math -msse2 -fopt-info-vec-missed -fno-omit-frame-pointer -std=gnu99
+# >>>>>>> otimizacao-9
 
 .DEFAULT_GOAL 	= k_means
 
