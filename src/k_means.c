@@ -60,6 +60,7 @@ void init() {
 }
 
 void calc_centroids() {
+#pragma omp smd
   for (int i = 0; i < K; i++) {
     cluster_x[i] = 0;
     cluster_y[i] = 0;
