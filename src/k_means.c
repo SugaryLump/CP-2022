@@ -8,10 +8,7 @@
 #define N 10000000
 #define K 4
 
-// coordinate *samples;
 int *cluster_indices;
-// cluster *clusters;
-// coordinate *centroids;
 float *centroids_x;
 float *centroids_y;
 
@@ -49,13 +46,10 @@ void init() {
   cluster_size = malloc(K * sizeof(int));
   cluster_x = malloc(K * sizeof(float));
   cluster_y = malloc(K * sizeof(float));
-  // centroids = malloc(K *sizeof(coordinate));
   centroids_x = malloc(K * sizeof(float));
   centroids_y = malloc(K * sizeof(float));
   for (int i = 0; i < K; i++) {
     cluster_indices[i] = i;
-    // clusters[i].centroid.cluster_index = i;
-    // cluster_size[i] = 1;
   }
 }
 
@@ -78,14 +72,6 @@ void calc_centroids() {
     centroids_x[i] = cluster_x[i] / cluster_size[i];
     centroids_y[i] = cluster_y[i] / cluster_size[i];
   }
-
-  //   for (int j = 0; j < clusters[i].size; j++) {
-  //     sum_x += clusters[i].samples[j]->x;
-  //     sum_y += clusters[i].samples[j]->y;
-  //   }
-  //   clusters[i].centroid->x = sum_x / clusters[i].size;
-  //   clusters[i].centroid->y = sum_y / clusters[i].size;
-  // }
 }
 
 bool distribute_elements() {
@@ -94,23 +80,6 @@ bool distribute_elements() {
   for (int i = 0; i < N; i++) {
     // Find nearest cluster
     int cluster_index = 0;
-    // Isto é mais lento for some reason... Vetoriza o cálculo da distância, mas
-    // o cálculo do mínimo demora consideravelmente mais e acrescenta ~1s ao
-    // tempo de execução
-
-    // float distances[k];
-
-    // for (int j = 0; j < k; j++) {
-    //   distances[j] = dist(samples[i], centroids[j]);
-    // }
-
-    // float min = distances[0];
-    // for (int j = 1; j < k; j++) {
-    //   if (distances[j] < min) {
-    //     cluster_index = j;
-    //     min = distances[j];
-    //   }
-    // }
 
     float min = dist(i, 0);
     for (int j = 1; j < K; j++) {
@@ -126,8 +95,6 @@ bool distribute_elements() {
       changed = true;
     }
     cluster_indices[i] = cluster_index;
-    // clusters[cluster_index].samples[clusters[cluster_index].size] =
-    // &samples[i]; clusters[cluster_index].size++;
   }
 
   return changed;
