@@ -5,7 +5,7 @@ INCLUDES		= include/
 EXEC			= k_means
 THREADS			= 4
 
-CFLAGS			= "-lm" "-g" -Iincludes -Ofast -ftree-vectorize -ffast-math -msse2 -fopt-info-vec-missed -std=gnu99 -fopenmp -fno-omit-frame-pointer # -funroll-loops
+CFLAGS			= "-lm" "-g" -Iincludes -Ofast -ftree-vectorize -fno-fast-math -msse2 -fopt-info-vec-missed -std=gnu99 -fopenmp -fno-omit-frame-pointer # -funroll-loops
 
 .DEFAULT_GOAL 	= k_means
 
