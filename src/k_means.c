@@ -107,6 +107,7 @@ int main(int argc, char **argv) {
     sscanf(argv[2], "%d", &K);
     if (argc > 3) {
       sscanf(argv[3], "%d", &n_threads);
+      omp_set_num_threads(n_threads);
     }
   }
   else {
