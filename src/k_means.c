@@ -4,9 +4,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <omp.h>
 
-#define N 10000000
-#define K 4
+int N;
+int K;
+int n_threads = 1;
 
 int *cluster_indices;
 float *centroids_x;
@@ -54,7 +56,6 @@ void init() {
 }
 
 void calc_centroids() {
-#pragma omp smd
   for (int i = 0; i < K; i++) {
     cluster_x[i] = 0;
     cluster_y[i] = 0;
@@ -76,7 +77,7 @@ void calc_centroids() {
 
 bool distribute_elements() {
   bool changed = false;
-
+#pragma omp parallel for reduction(||:changed)
   for (int i = 0; i < N; i++) {
     // Find nearest cluster
     int cluster_index = 0;
@@ -101,17 +102,29 @@ bool distribute_elements() {
 }
 
 int main(int argc, char **argv) {
+  if (argc > 2) {
+    sscanf(argv[1], "%d", &N);
+    sscanf(argv[2], "%d", &K);
+    if (argc > 3) {
+      sscanf(argv[3], "%d", &n_threads);
+    }
+  }
+  else {
+    printf("Usage: ./k_means <#samples> <#clusters> <#threads>");
+    return 0;
+  }
+
   init();
   calc_centroids();
-  int iterations = 0;
-  while (distribute_elements()) {
-    iterations++;
+
+  int iterations = 0;  
+  for (iterations = 0; iterations < 21 && distribute_elements(); iterations++) {
     calc_centroids();
   }
 
   printf("N = %d, K = %d\n", N, K);
   for (int i = 0; i < K; i++) {
-    printf("Center: (%f, %f) : Size: %d\n", centroids_x[i], centroids_y[i],
+    printf("Center: (%1.3f, %1.3f) : Size: %d\n", centroids_x[i], centroids_y[i],
            cluster_size[i]);
   }
   printf("Iterations: %d\n", iterations);

@@ -3,6 +3,7 @@ BIN				= bin/
 SRC				= src/
 INCLUDES		= include/
 EXEC			= k_means
+THREADS			= 4
 
 CFLAGS			= "-lm" "-g" -Iincludes -Ofast -ftree-vectorize -ffast-math -msse2 -fopt-info-vec-missed -std=gnu99 -fopenmp -fno-omit-frame-pointer # -funroll-loops
 
@@ -21,4 +22,10 @@ clean:
 	rm -r bin/*
 
 run:
-	./$(BIN)$(EXEC) 10000000 4
+	./$(BIN)$(EXEC) 10000000 4 4
+
+runseq:
+	./$(BIN)$(EXEC) 10000000 $(CP_CLUSTERS)
+
+runpar:
+	$(BIN)$(EXEC) 10000000 $(CP_CLUSTERS) $THREADS
