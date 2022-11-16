@@ -17,8 +17,6 @@ float *centroids_y;
 float *sample_x;
 float *sample_y;
 
-float *cluster_x;
-float *cluster_y;
 int *cluster_size;
 
 float dist(int a, int b) {
@@ -46,31 +44,53 @@ void init() {
 
   // Initialize clusters
   cluster_size = malloc(K * sizeof(int));
-  cluster_x = malloc(K * sizeof(float));
-  cluster_y = malloc(K * sizeof(float));
   centroids_x = malloc(K * sizeof(float));
   centroids_y = malloc(K * sizeof(float));
   for (int i = 0; i < K; i++) {
-    cluster_indices[i] = i;
+    centroids_x[i] = sample_x[i];
+    centroids_y[i] = sample_y[i];
   }
 }
 
 void calc_centroids() {
+  float cluster_x[K], cluster_y[K];
+  int p_cluster_size[K];
+  //float t_cluster_x[K], t_cluster_y[K];
+  //int t_cluster_size[K];
+
 #pragma omp smd
   for (int i = 0; i < K; i++) {
     cluster_x[i] = 0;
     cluster_y[i] = 0;
-    cluster_size[i] = 0;
+    p_cluster_size[i] = 0;
   }
+  // for (int i = 0; i < K; i++) {
+  //   t_cluster_x[i] = 0;
+  //   t_cluster_y[i] = 0;
+  //   t_cluster_size[i] = 0;
+  // }
 
+#pragma omp parallel for reduction(+:cluster_x, cluster_y, p_cluster_size)
   for (int i = 0; i < N; i++) {
     cluster_x[cluster_indices[i]] += sample_x[i];
     cluster_y[cluster_indices[i]] += sample_y[i];
-    cluster_size[cluster_indices[i]]++;
+    p_cluster_size[cluster_indices[i]]++;
   }
+  // for (int i = 0; i < N; i++) {
+  //   t_cluster_x[cluster_indices[i]] += sample_x[i];
+  //   t_cluster_y[cluster_indices[i]] += sample_y[i];
+  //   t_cluster_size[cluster_indices[i]]++;
+  // }
+
+  // for (int i = 0; i < K; i++) {
+  //   if (t_cluster_x[i] != cluster_x[i]) {
+  //         printf("ERROR in cluster %d:\nParallel:\t(%f, %f), %d\nSequential:\t(%f, %f), %d\n\n", i, cluster_x[i], cluster_y[i], p_cluster_size[i], t_cluster_x[i], t_cluster_y[i], t_cluster_size[i]);
+  //       }
+  // }
 
   // Calculate centroids
   for (int i = 0; i < K; i++) {
+    cluster_size[i] = p_cluster_size[i];
     centroids_x[i] = cluster_x[i] / cluster_size[i];
     centroids_y[i] = cluster_y[i] / cluster_size[i];
   }
@@ -117,7 +137,6 @@ int main(int argc, char **argv) {
   }
 
   init();
-  calc_centroids();
 
   int iterations = 0;  
   for (iterations = 0; iterations < 21 && distribute_elements(); iterations++) {
