@@ -1,10 +1,10 @@
 #include "k_means.h"
 #include <math.h>
+#include <omp.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-#include <omp.h>
 
 int N;
 int K;
@@ -55,8 +55,8 @@ void init() {
 void calc_centroids() {
   float cluster_x[K], cluster_y[K];
   int p_cluster_size[K];
-  //float t_cluster_x[K], t_cluster_y[K];
-  //int t_cluster_size[K];
+  // float t_cluster_x[K], t_cluster_y[K];
+  // int t_cluster_size[K];
 
 #pragma omp smd
   for (int i = 0; i < K; i++) {
@@ -70,7 +70,7 @@ void calc_centroids() {
   //   t_cluster_size[i] = 0;
   // }
 
-#pragma omp parallel for reduction(+:cluster_x, cluster_y, p_cluster_size)
+#pragma omp parallel for reduction(+ : cluster_x, cluster_y, p_cluster_size)
   for (int i = 0; i < N; i++) {
     cluster_x[cluster_indices[i]] += sample_x[i];
     cluster_y[cluster_indices[i]] += sample_y[i];
@@ -84,7 +84,10 @@ void calc_centroids() {
 
   // for (int i = 0; i < K; i++) {
   //   if (t_cluster_x[i] != cluster_x[i]) {
-  //         printf("ERROR in cluster %d:\nParallel:\t(%f, %f), %d\nSequential:\t(%f, %f), %d\n\n", i, cluster_x[i], cluster_y[i], p_cluster_size[i], t_cluster_x[i], t_cluster_y[i], t_cluster_size[i]);
+  //         printf("ERROR in cluster %d:\nParallel:\t(%f, %f),
+  //         %d\nSequential:\t(%f, %f), %d\n\n", i, cluster_x[i], cluster_y[i],
+  //         p_cluster_size[i], t_cluster_x[i], t_cluster_y[i],
+  //         t_cluster_size[i]);
   //       }
   // }
 
@@ -98,7 +101,7 @@ void calc_centroids() {
 
 bool distribute_elements() {
   bool changed = false;
-#pragma omp parallel for reduction(||:changed)
+#pragma omp parallel for shared(changed)
   for (int i = 0; i < N; i++) {
     // Find nearest cluster
     int cluster_index = 0;
@@ -130,23 +133,22 @@ int main(int argc, char **argv) {
       sscanf(argv[3], "%d", &n_threads);
       omp_set_num_threads(n_threads);
     }
-  }
-  else {
+  } else {
     printf("Usage: ./k_means <#samples> <#clusters> <#threads>");
     return 0;
   }
 
   init();
 
-  int iterations = 0;  
+  int iterations = 0;
   for (iterations = 0; iterations < 21 && distribute_elements(); iterations++) {
     calc_centroids();
   }
 
   printf("N = %d, K = %d\n", N, K);
   for (int i = 0; i < K; i++) {
-    printf("Center: (%1.3f, %1.3f) : Size: %d\n", centroids_x[i], centroids_y[i],
-           cluster_size[i]);
+    printf("Center: (%1.3f, %1.3f) : Size: %d\n", centroids_x[i],
+           centroids_y[i], cluster_size[i]);
   }
   printf("Iterations: %d\n", iterations);
 }
