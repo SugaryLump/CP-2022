@@ -100,9 +100,9 @@ void distribute_elements_kernel(float *d_sample_x, float *d_sample_y,
   int cent_start = blockDim.x * SperT * 2; //index of x coord of centroid 0
   int new_start = cent_start + K * 2; //index of x coord of new centroid 0 sum
   
-  for (int i = 0; i < SperT && id + i < N; i++) {
-    shared_samples[shared_ind + i * 2] = d_sample_x[id + i];
-    shared_samples[shared_ind + i * 2 + 1] = d_sample_y[id + i];
+  for (int i = 0; i < SperT && id * SperT + i < N; i++) {
+    shared_samples[shared_ind + i * 2] = d_sample_x[id * SperT + i];
+    shared_samples[shared_ind + i * 2 + 1] = d_sample_y[id * SperT + i];
   }
   
   if (bid < K) {
@@ -115,7 +115,7 @@ void distribute_elements_kernel(float *d_sample_x, float *d_sample_y,
   
   __syncthreads();
 
-  for (int i = 0; i < SperT && id + i < N; i++)
+  for (int i = 0; i < SperT && id * SperT + i < N; i++)
   {
     int cluster_index = 0;
     float min = dist(shared_samples[shared_ind + i * 2], shared_samples[shared_ind + i * 2 + 1],
@@ -136,16 +136,16 @@ void distribute_elements_kernel(float *d_sample_x, float *d_sample_y,
     }
 
     // Update data
-    if (cluster_index != d_cluster_indices[id + i])
+    if (cluster_index != d_cluster_indices[id * SperT + i])
     {
       *changed = true;
     }
-    d_cluster_indices[id + i] = cluster_index;
+    d_cluster_indices[id * SperT + i] = cluster_index;
   }
 
   __syncthreads();
   // Sum centroids and cluster counts
-  if ((*changed) && bid == 0) {
+  if (bid == 0) {
     for (int i = 0; i < SperT * blockDim.x && blockIdx.x * blockDim.x * SperT + i < N; i++) {
       int cluster = d_cluster_indices[blockIdx.x * blockDim.x * SperT + i];
       shared_samples[new_start + cluster * 3] += shared_samples[i * 2];
@@ -180,6 +180,7 @@ int main(int argc, char **argv)
       }
     }
   }
+  N_BLOCKS = ceil((float)N / (float)THREADS_PER_BLOCK / (float)SAMPLES_PER_THREAD);
 
   // # Allocate memory on device
   float *d_sample_x, *d_sample_y, *d_centroids_x, *d_centroids_y;
