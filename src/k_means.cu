@@ -15,13 +15,6 @@ int SAMPLES_PER_THREAD = 10;
 int THREADS_PER_BLOCK = 64;
 int N_BLOCKS = 0;
 
-// Coordinates of samples (on host)
-float *h_sample_x;
-float *h_sample_y;
-
-// Size of clusters (on host)
-int *h_cluster_size;
-
 __device__ float dist(float a_x, float a_y, float b_x, float b_y)
 {
   return (b_x - a_x) * (b_x - a_x) + (b_y - a_y) * (b_y - a_y);
@@ -35,36 +28,6 @@ void init_kernel (float *d_sample_x, float *d_sample_y, curandState* states, int
     d_sample_x[id * SperT + i] = curand_uniform(&states[id]);
     d_sample_y[id * SperT + i] = curand_uniform(&states[id]);
   }
-}
-
-void init(float *d_sample_x, float *d_sample_y, int *d_cluster_indices,
-          float *d_centroids_x, float *d_centroids_y)
-{
-  // Initialize randomization seed
-  srand(10);
-
-  // Create host arrays for generation on host
-  h_sample_x = (float *)malloc(N * sizeof(float));
-  h_sample_y = (float *)malloc(N * sizeof(float));
-  h_cluster_size = (int *)malloc(K * sizeof(int));
-
-  // Generate samples and initialize cluster indices with dummy value
-  for (int i = 0; i < N; i++)
-  {
-    h_sample_x[i] = (float)rand() / RAND_MAX;
-    h_sample_y[i] = (float)rand() / RAND_MAX;
-  }
-
-  int n_bytes = 4 * N;
-  int k_bytes = 4 * K;
-
-  // Copy data to device
-  cudaMemcpy(d_sample_x, h_sample_x, n_bytes, cudaMemcpyHostToDevice);
-  cudaMemcpy(d_sample_y, h_sample_y, n_bytes, cudaMemcpyHostToDevice);
-  cudaMemset(d_cluster_indices, -1, n_bytes);
-  cudaMemcpy(d_centroids_x, d_sample_x, k_bytes, cudaMemcpyDeviceToDevice);
-  cudaMemcpy(d_centroids_y, d_sample_y, k_bytes, cudaMemcpyDeviceToDevice);
-  checkCUDAError("Init error");
 }
 
 void calc_centroids(float *d_centroids_x, float *d_centroids_y,
@@ -176,7 +139,6 @@ int main(int argc, char **argv)
 {
   // # Argument parsing
   // ## (N_samples, N_clusters, ThreadsPerBlock, SamplesPerThread, GenerateWithGPU)
-  bool gpu_gen = true;
   if (argc > 1)
   {
     sscanf(argv[1], "%d", &N);
@@ -189,7 +151,6 @@ int main(int argc, char **argv)
         if (argc > 4)
         {
           sscanf(argv[4], "%d", &SAMPLES_PER_THREAD);
-          gpu_gen = !(argc > 5);
         }
       }
     }
@@ -218,21 +179,16 @@ int main(int argc, char **argv)
   checkCUDAError("Malloc error");
 
   // # Generate values and place in device memory
-  if (gpu_gen) {
-    curandState* states;
-    cudaMalloc((void**)&states, THREADS_PER_BLOCK * N_BLOCKS * sizeof(curandState));
-    init_kernel <<<N_BLOCKS, THREADS_PER_BLOCK >>> (d_sample_x, d_sample_y,
-                                                    states, SAMPLES_PER_THREAD, N);
-    cudaDeviceSynchronize();
-    cudaFree(states);
-    cudaMemset(d_cluster_indices, -1, n_bytes);
-    cudaMemcpy(d_centroids_x, d_sample_x, k_bytes, cudaMemcpyDeviceToDevice);
-    cudaMemcpy(d_centroids_y, d_sample_y, k_bytes, cudaMemcpyDeviceToDevice);
-    checkCUDAError("GPU Init");
-  }
-  else {
-    init(d_sample_x, d_sample_y, d_cluster_indices, d_centroids_x, d_centroids_y);
-  }
+  curandState* states;
+  cudaMalloc((void**)&states, THREADS_PER_BLOCK * N_BLOCKS * sizeof(curandState));
+  init_kernel <<<N_BLOCKS, THREADS_PER_BLOCK >>> (d_sample_x, d_sample_y,
+                                                  states, SAMPLES_PER_THREAD, N);
+  cudaDeviceSynchronize();
+  cudaFree(states);
+  cudaMemset(d_cluster_indices, -1, n_bytes);
+  cudaMemcpy(d_centroids_x, d_sample_x, k_bytes, cudaMemcpyDeviceToDevice);
+  cudaMemcpy(d_centroids_y, d_sample_y, k_bytes, cudaMemcpyDeviceToDevice);
+  checkCUDAError("GPU Init");
 
   // # Begin main loop
   // ## Prepare convergence flag in host/device
