@@ -4,7 +4,7 @@ SRC				= src/
 INCLUDES		= include/
 EXEC			= k_means
 
-CFLAGS			= "-lm" -Iincludes -std=c++11 -arch=sm_35 -Wno-deprecated-gpu-targets -Xcompiler -fopenmp -g
+CFLAGS			= "-lm" -Iincludes -std=c++11 -arch=sm_35 -Wno-deprecated-gpu-targets -Xcompiler -fopenmp -g -lineinfo
 
 .DEFAULT_GOAL 	= k_means
 

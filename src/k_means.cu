@@ -116,28 +116,10 @@ void distribute_elements_kernel(float *d_sample_x, float *d_sample_y,
                                 int *d_cluster_indices,
                                 bool *changed, int N, const int K, const int SperT)
 {
-  int bid = threadIdx.x;
-  int id = blockDim.x * blockIdx.x + bid;
-
-  //Shared memory array that divided as follows:
-  // {sample_0.x, sample0.y, sample1.x, etc..., centroid_0.x, centroid_0.y, etc...}
-  //extern __shared__ float shared_samples[];
-  //int cent_start = blockDim.x * SperT; //index of x coord of centroid 0
-  //
-  //for (int i = bid; i - bid < SperT &&  id + i - bid < N; i++) {
-  //  shared_samples[i * 2] = d_sample_x[id + i - bid];
-  //  shared_samples[i * 2 + 1] = d_sample_y[id + i - bid];
-  //}
-  //
-  //if (bid < K) {
-  //  shared_samples[cent_start + bid * 2] = d_centroids_x[bid];
-  //  shared_samples[cent_start + bid * 2 + 1] = d_centroids_y[bid];
-  //}
-  //
-  //__syncthreads();
+  int id = blockDim.x * blockIdx.x + threadIdx.x;
 
   int start_i = id * SperT;
-  for (int i = id * SperT; i - start_i < SperT && i < N; i++)
+  for (int i = start_i; i - start_i < SperT && i < N; i++)
   {
     // Find nearest cluster
     int cluster_index = 0;
@@ -183,6 +165,7 @@ int main(int argc, char **argv)
       }
     }
   }
+  N_BLOCKS = ceil((float)N / (float)THREADS_PER_BLOCK / (float)SAMPLES_PER_THREAD);
   // # Openmp prepping
   omp_set_num_threads(64);
 
@@ -209,14 +192,13 @@ int main(int argc, char **argv)
   cudaMalloc((void **)&d_changed, sizeof(bool));
   cudaMemset(d_changed, 0, sizeof(bool));
   // ## First iteration sample distribution
-  int sh_bytes = SAMPLES_PER_THREAD * THREADS_PER_BLOCK * sizeof(float) * 2;
-  distribute_elements_kernel<<<N_BLOCKS, THREADS_PER_BLOCK, sh_bytes>>>(d_sample_x,
-                                                                        d_sample_y,
-                                                                        d_centroids_x,
-                                                                        d_centroids_y,
-                                                                        d_cluster_indices,
-                                                                        d_changed,
-                                                                        N, K, SAMPLES_PER_THREAD);
+  distribute_elements_kernel<<<N_BLOCKS, THREADS_PER_BLOCK>>>(d_sample_x,
+                                                              d_sample_y,
+                                                              d_centroids_x,
+                                                              d_centroids_y,
+                                                              d_cluster_indices,
+                                                              d_changed,
+                                                              N, K, SAMPLES_PER_THREAD);
   cudaDeviceSynchronize();
   // ## Get convergence flag from device
   cudaMemcpy(&h_changed, d_changed, sizeof(bool), cudaMemcpyDeviceToHost);
@@ -229,13 +211,13 @@ int main(int argc, char **argv)
     h_changed = false;
     cudaMemset(d_changed, 0, sizeof(bool));
     // ## Redistribute elements
-    distribute_elements_kernel<<<N_BLOCKS, THREADS_PER_BLOCK, sh_bytes>>>(d_sample_x,
-                                                                          d_sample_y,
-                                                                          d_centroids_x,
-                                                                          d_centroids_y,
-                                                                          d_cluster_indices,
-                                                                          d_changed,
-                                                                          N, K, SAMPLES_PER_THREAD);
+    distribute_elements_kernel<<<N_BLOCKS, THREADS_PER_BLOCK>>>(d_sample_x,
+                                                                d_sample_y,
+                                                                d_centroids_x,
+                                                                d_centroids_y,
+                                                                d_cluster_indices,
+                                                                d_changed,
+                                                                N, K, SAMPLES_PER_THREAD);
     cudaDeviceSynchronize();                                                                  
     // ## Get 'changed' flag from device
     cudaMemcpy(&h_changed, d_changed, sizeof(bool), cudaMemcpyDeviceToHost);
