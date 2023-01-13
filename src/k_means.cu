@@ -7,12 +7,13 @@
 #include <time.h>
 #include <cuda.h>
 #include <cmath>
+#include <curand_kernel.h>
 
-int N = 10000000;
+int N = 100000000;
 int K = 4;
-int SAMPLES_PER_THREAD = 1;
-int THREADS_PER_BLOCK = 128;
-int N_BLOCKS = ceil((float)N / (float)THREADS_PER_BLOCK / (float)SAMPLES_PER_THREAD);
+int SAMPLES_PER_THREAD = 10;
+int THREADS_PER_BLOCK = 64;
+int N_BLOCKS = 0;
 
 // Coordinates of samples (on host)
 float *h_sample_x;
@@ -24,6 +25,16 @@ int *h_cluster_size;
 __device__ float dist(float a_x, float a_y, float b_x, float b_y)
 {
   return (b_x - a_x) * (b_x - a_x) + (b_y - a_y) * (b_y - a_y);
+}
+
+__global__
+void init_kernel (float *d_sample_x, float *d_sample_y, curandState* states, int SperT, int N) {
+  int id = blockIdx.x * blockDim.x + threadIdx.x;
+  curand_init(10, id, 0, &states[id]);
+  for (int i = 0; i < SperT && id * SperT + i < N; i++) {
+    d_sample_x[id * SperT + i] = curand_uniform(&states[id]);
+    d_sample_y[id * SperT + i] = curand_uniform(&states[id]);
+  }
 }
 
 void init(float *d_sample_x, float *d_sample_y, int *d_cluster_indices,
@@ -100,9 +111,9 @@ void distribute_elements_kernel(float *d_sample_x, float *d_sample_y,
   int cent_start = blockDim.x * SperT * 2; //index of x coord of centroid 0
   int new_start = cent_start + K * 2; //index of x coord of new centroid 0 sum
   
-  for (int i = 0; i < SperT && id + i < N; i++) {
-    shared_samples[shared_ind + i * 2] = d_sample_x[id + i];
-    shared_samples[shared_ind + i * 2 + 1] = d_sample_y[id + i];
+  for (int i = 0; i < SperT && id  * SperT + i < N; i++) {
+    shared_samples[shared_ind + i * 2] = d_sample_x[id * SperT + i];
+    shared_samples[shared_ind + i * 2 + 1] = d_sample_y[id * SperT + i];
   }
   
   if (bid < K) {
@@ -115,7 +126,7 @@ void distribute_elements_kernel(float *d_sample_x, float *d_sample_y,
   
   __syncthreads();
 
-  for (int i = 0; i < SperT && id + i < N; i++)
+  for (int i = 0; i < SperT && id * SperT + i < N; i++)
   {
     int cluster_index = 0;
     float min = dist(shared_samples[shared_ind + i * 2], shared_samples[shared_ind + i * 2 + 1],
@@ -136,16 +147,16 @@ void distribute_elements_kernel(float *d_sample_x, float *d_sample_y,
     }
 
     // Update data
-    if (cluster_index != d_cluster_indices[id + i])
+    if (cluster_index != d_cluster_indices[id * SperT + i])
     {
       *changed = true;
     }
-    d_cluster_indices[id + i] = cluster_index;
+    d_cluster_indices[id * SperT + i] = cluster_index;
   }
 
   __syncthreads();
   // Sum centroids and cluster counts
-  if ((*changed) && bid == 0) {
+  if (bid == 0) {
     for (int i = 0; i < SperT * blockDim.x && blockIdx.x * blockDim.x * SperT + i < N; i++) {
       int cluster = d_cluster_indices[blockIdx.x * blockDim.x * SperT + i];
       shared_samples[new_start + cluster * 3] += shared_samples[i * 2];
@@ -164,6 +175,8 @@ void distribute_elements_kernel(float *d_sample_x, float *d_sample_y,
 int main(int argc, char **argv)
 {
   // # Argument parsing
+  // ## (N_samples, N_clusters, ThreadsPerBlock, SamplesPerThread, GenerateWithGPU)
+  bool gpu_gen = true;
   if (argc > 1)
   {
     sscanf(argv[1], "%d", &N);
@@ -176,10 +189,12 @@ int main(int argc, char **argv)
         if (argc > 4)
         {
           sscanf(argv[4], "%d", &SAMPLES_PER_THREAD);
+          gpu_gen = !(argc > 5);
         }
       }
     }
   }
+  N_BLOCKS = ceil((float)N / (float)THREADS_PER_BLOCK / (float)SAMPLES_PER_THREAD);
 
   // # Allocate memory on device
   float *d_sample_x, *d_sample_y, *d_centroids_x, *d_centroids_y;
@@ -203,7 +218,21 @@ int main(int argc, char **argv)
   checkCUDAError("Malloc error");
 
   // # Generate values and place in device memory
-  init(d_sample_x, d_sample_y, d_cluster_indices, d_centroids_x, d_centroids_y);
+  if (gpu_gen) {
+    curandState* states;
+    cudaMalloc((void**)&states, THREADS_PER_BLOCK * N_BLOCKS * sizeof(curandState));
+    init_kernel <<<N_BLOCKS, THREADS_PER_BLOCK >>> (d_sample_x, d_sample_y,
+                                                    states, SAMPLES_PER_THREAD, N);
+    cudaDeviceSynchronize();
+    cudaFree(states);
+    cudaMemset(d_cluster_indices, -1, n_bytes);
+    cudaMemcpy(d_centroids_x, d_sample_x, k_bytes, cudaMemcpyDeviceToDevice);
+    cudaMemcpy(d_centroids_y, d_sample_y, k_bytes, cudaMemcpyDeviceToDevice);
+    checkCUDAError("GPU Init");
+  }
+  else {
+    init(d_sample_x, d_sample_y, d_cluster_indices, d_centroids_x, d_centroids_y);
+  }
 
   // # Begin main loop
   // ## Prepare convergence flag in host/device
