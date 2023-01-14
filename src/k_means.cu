@@ -23,7 +23,7 @@ __device__ float dist(float a_x, float a_y, float b_x, float b_y)
 __global__
 void init_kernel (float *d_sample_x, float *d_sample_y, curandState* states, int SperT, int N) {
   int id = blockIdx.x * blockDim.x + threadIdx.x;
-  curand_init(10, id, 0, &states[id]);
+  curand_init(10, 0, id * SperT * 2, &states[id]);
   for (int i = 0; i < SperT && id * SperT + i < N; i++) {
     d_sample_x[id * SperT + i] = curand_uniform(&states[id]);
     d_sample_y[id * SperT + i] = curand_uniform(&states[id]);
@@ -60,7 +60,7 @@ void distribute_elements_kernel(float *d_sample_x, float *d_sample_y,
                                 int *d_cluster_indices,
                                 int *d_cluster_count, float *d_centroids_sum_x,
                                 float *d_centroids_sum_y,
-                                bool *changed, int N, const int K, const int SperT)
+                                int *changed, int N, const int K, const int SperT)
 {
   int bid = threadIdx.x;
   int id = blockDim.x * blockIdx.x + bid;
@@ -110,9 +110,9 @@ void distribute_elements_kernel(float *d_sample_x, float *d_sample_y,
     }
 
     // Update data
-    if (cluster_index != d_cluster_indices[id * SperT + i])
+    if (cluster_index != d_cluster_indices[id * SperT + i] && !*changed)
     {
-      *changed = true;
+      atomicCAS(changed, 0, 1);
     }
     d_cluster_indices[id * SperT + i] = cluster_index;
     atomicAdd_block(&shared_samples[new_start + cluster_index * 3], shared_samples[shared_ind + i * 2]);
@@ -186,9 +186,9 @@ int main(int argc, char **argv)
 
   // # Begin main loop
   // ## Prepare convergence flag in host/device
-  bool h_changed, *d_changed;
-  cudaMalloc((void **)&d_changed, sizeof(bool));
-  cudaMemset(d_changed, 0, sizeof(bool));
+  int h_changed, *d_changed;
+  cudaMalloc((void **)&d_changed, sizeof(int));
+  cudaMemset(d_changed, 0, sizeof(int));
   // ## First iteration sample distribution
   // ### sh_bytes is the amount of bytes of shared memory. Shared memory will 
   // ### have all the block's respective samples, all the current centroid
@@ -207,7 +207,7 @@ int main(int argc, char **argv)
   cudaDeviceSynchronize();
   checkCUDAError("Device sync");
   // ## Get convergence flag from device
-  cudaMemcpy(&h_changed, d_changed, sizeof(bool), cudaMemcpyDeviceToHost);
+  cudaMemcpy(&h_changed, d_changed, sizeof(int), cudaMemcpyDeviceToHost);
   checkCUDAError("Getting flag");
   int iterations;
   for (iterations = 0; iterations < 21 && h_changed; iterations++)
@@ -216,8 +216,8 @@ int main(int argc, char **argv)
     calc_centroids(d_centroids_x, d_centroids_y, d_centroid_sum_x, d_centroid_sum_y, d_cluster_count);
 
     // ## Reset 'changed' flags on device and host
-    h_changed = false;
-    cudaMemset(d_changed, 0, sizeof(bool));
+    h_changed = 0;
+    cudaMemset(d_changed, 0, sizeof(int));
 
     // ## Reset accumulator arrays
     cudaMemset(d_centroid_sum_x, 0, k_bytes);
