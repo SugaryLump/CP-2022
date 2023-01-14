@@ -115,23 +115,17 @@ void distribute_elements_kernel(float *d_sample_x, float *d_sample_y,
       *changed = true;
     }
     d_cluster_indices[id * SperT + i] = cluster_index;
+    atomicAdd_block(&shared_samples[new_start + cluster_index * 3], shared_samples[shared_ind + i * 2]);
+    atomicAdd_block(&shared_samples[new_start + cluster_index * 3 + 1], shared_samples[shared_ind + i * 2 + 1]);
+    atomicAdd_block(&shared_samples[new_start + cluster_index * 3 + 2], 1);
   }
 
   __syncthreads();
-  // Sum centroids and cluster counts
-  if (bid == 0) {
-    for (int i = 0; i < SperT * blockDim.x && blockIdx.x * blockDim.x * SperT + i < N; i++) {
-      int cluster = d_cluster_indices[blockIdx.x * blockDim.x * SperT + i];
-      shared_samples[new_start + cluster * 3] += shared_samples[i * 2];
-      shared_samples[new_start + cluster * 3 + 1] += shared_samples[i * 2 + 1];
-      shared_samples[new_start + cluster * 3 + 2] += 1;
-    }
 
-    for  (int i = 0; i < K; i++) {
-      atomicAdd(&d_centroids_sum_x[i], shared_samples[new_start + i * 3]);
-      atomicAdd(&d_centroids_sum_y[i], shared_samples[new_start + i * 3 + 1]);
-      atomicAdd(&d_cluster_count[i], shared_samples[new_start + i * 3 + 2]);
-    }
+  if (bid < K) {
+    atomicAdd(&d_centroids_sum_x[bid], shared_samples[new_start + bid * 3]);
+    atomicAdd(&d_centroids_sum_y[bid], shared_samples[new_start + bid * 3 + 1]);
+    atomicAdd(&d_cluster_count[bid], shared_samples[new_start + bid * 3 + 2]);
   }
 }
 
